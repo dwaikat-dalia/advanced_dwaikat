@@ -12,6 +12,7 @@ router.get('/report',Reportcontroller.GetReport );
 // CREATE a new user
 router.post('/report',Reportcontroller.PostReport );
 
+
 // UPDATE an existing user
 router.put('/report/:id', Reportcontroller.UpdateReport);
 

@@ -28,7 +28,9 @@ exports.PostData = (req, res) => {
     });
 };
 
+
 exports.UpdateData = (req, res) => {
+  
     const dataId = req.params.id;
     const { Access_ID, Researcher_ID, Timestamp,  Data_Request_Details, status } = req.body;  
     db.query('UPDATE opendataaccess SET   Researcher_ID=?, Timestamp=?, Data_Request_Details=? ,status=?  WHERE Access_ID=?', [Researcher_ID,User_ID, Timestamp, Data_Request_Details ,  status], (err, result) => {

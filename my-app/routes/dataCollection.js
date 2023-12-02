@@ -4,6 +4,7 @@ const router = express.Router();
 
 const datacontroller = require('../controllers/dataController.js');
 
+
 // GET all users
 router.get('/data',datacontroller.GetData );
 
