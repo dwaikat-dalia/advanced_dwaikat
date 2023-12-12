@@ -18,6 +18,7 @@ const server = http.createServer((req, res) => {
 
 /*exports.GetUser = (req, res) => {
  //   console.log("we are here ");
+ 
  const { User_ID,Password } = req.body;
 
    db.query('SELECT * FROM user', (err, results) => {
