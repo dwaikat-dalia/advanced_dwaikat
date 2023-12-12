@@ -3,6 +3,7 @@ const app = express();
 const userRoutes = require('./UserRoutes.js'); // Adjust the path if needed
 const Alertroute = require('./Alertroute.js'); // Adjust the path if needed
 const OtherRoutes=require('./OtherRoutes.js'); // Adjust the path if needed
+
 app.use(express.json()); // Middleware to parse JSON bodies  
 
 app.use('/api', userRoutes); // Mount your user routes under the '/api' path

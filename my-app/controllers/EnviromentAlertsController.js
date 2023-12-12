@@ -29,8 +29,8 @@ exports.GetAlerts = (req, res) => {
       });
 };
 exports.PostAlerts = (req, res) => {
-    const {ALert_ID, User_ID,Timestamp, ALert_Message } = req.body;
-
+    const {ALert_ID, User_ID, ALert_Message } = req.body;
+    const Timestamp = new Date();
     db.query('INSERT INTO environmentalalerts (ALert_ID ,User_ID ,Timestamp,ALert_Message) VALUES (?,?, ?, ?)', [ALert_ID , User_ID, Timestamp, ALert_Message], (err, result) => {
       if (err) {
         console.error('Error creating Alert:', err);
