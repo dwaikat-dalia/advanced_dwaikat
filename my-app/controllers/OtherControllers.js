@@ -12,7 +12,7 @@ const server = http.createServer((req, res) => {
   res.end('Hello, World!\n');
 });
 
-
+//const userAuth = require('../controllers/Login.js'); 
 ////////////////////////////////
 
 
@@ -69,23 +69,29 @@ exports.DeleteResources = (req, res) => {
 
 /////////////////////////////////Community Report////////////////////////////////////////////
 exports.GetReport = (req, res) => { 
+  const myGlobalInteger = require('./Login');
   db.query('SELECT * FROM CommunityReports', (err, results) => {
        if (err) {
          console.error('Error fetching CommunityReports:', err);
          res.status(500).json({ error: 'Internal Server Error' });
        } else {
+       // console.log(myGlobalInteger);
+       // res.json(myGlobalInteger);
          res.json(results);
        }
      });
+    
 };
 exports.PostReport = (req, res) => {
+  const userID = require('./Login');
   console.log(req.body); 
-  const { User_ID, Report_Message, Environmental_Issue_Type, Location } = req.body;
+  const {User_ID , Report_Message, Environmental_Issue_Type, Location } = req.body;
+  //const userid= userAuth.getLoggedInUserId();
 
   const Timestamp = new Date(); // Create a new Date object to get the current timestamp
 
   // Remove Report_ID from here since it's an AUTO_INCREMENT field in the table
-  db.query('INSERT INTO communityreports (User_ID, Timestamp, Report_Message, Environmental_Issue_Type, Location) VALUES (?,?,?,?,?)', [User_ID, Timestamp, Report_Message, Environmental_Issue_Type, Location], (err, result) => {
+  db.query('INSERT INTO communityreports (User_ID, Timestamp, Report_Message, Environmental_Issue_Type, Location) VALUES (?,?,?,?,?)', [userID, Timestamp, Report_Message, Environmental_Issue_Type, Location], (err, result) => {
       if (err) {
           console.error('Error creating CommunityReports:', err);
           res.status(500).json({ error: 'Internal Server Error' });
@@ -96,11 +102,12 @@ exports.PostReport = (req, res) => {
 };
 
 exports.UpdateReport = (req, res) => {
+  const userID = require('./Login');
   const ReportId = req.params.id;
   const { User_ID, Report_Message, Environmental_Issue_Type, Location } = req.body;
   const Timestamp = new Date();
 
-  db.query('UPDATE communityreports SET  User_ID=?, Timestamp=?, Report_Message=? ,Environmental_Issue_Type=? ,Location=?  WHERE Report_ID=?', [ User_ID, Timestamp, Report_Message ,  Environmental_Issue_Type , Location,ReportId], (err, result) => {
+  db.query('UPDATE communityreports SET  User_ID=?, Timestamp=?, Report_Message=? ,Environmental_Issue_Type=? ,Location=?  WHERE Report_ID=?', [ userID, Timestamp, Report_Message ,  Environmental_Issue_Type , Location,ReportId], (err, result) => {
     if (err) {
       console.error('Error updating Reports:', err);
       res.status(500).json({ error: 'Internal Server Error' });
@@ -122,7 +129,58 @@ exports.DeleteReport = (req, res) => {
   });
 };
 
-/////////////////////////////////Data/////////////////////////////
+exports.DeleteReportbyuserid = (req, res) => {
+  const userid = require('./Login');
+  db.query('DELETE FROM communityreports WHERE User_ID=?', [userid], (err, result) => {
+    if (err) {
+      console.error('Error deleting Report:', err);
+      res.status(500).json({ error: 'Internal Server Error' });
+    } else {
+      res.json({ message: 'Report deleted successfully', rowsAffected: result.affectedRows });
+    }
+  });
+};
+
+exports.GetReportByID = (req, res) => {
+  const ReportId = req.params.id;
+  const { User_ID, Report_Message, Environmental_Issue_Type, Location } = req.body;
+  const Timestamp = new Date();
+  
+  db.query('SELECT *FROM CommunityReports WHERE Report_ID=?',[ReportId], (err, results) => {
+    if (err) {
+      console.error('Error fetching CommunityReports:', err);
+      res.status(500).json({ error: 'Internal Server Error' });
+    } else {
+    // console.log(myGlobalInteger);
+    // res.json(myGlobalInteger);
+      res.json(results);
+    }
+  });
+};
+
+exports.GetReportByUserID = (req, res) => {
+  const userid = require('./Login');
+ // const userid1 = req.params.id;
+
+  const { User_ID, Report_Message, Environmental_Issue_Type, Location } = req.body;
+  const Timestamp = new Date();
+  
+  db.query('SELECT *FROM CommunityReports WHERE User_ID=?',[userid], (err, results) => {
+    if (err) {
+      console.error('Error fetching CommunityReports:', err);
+      res.status(500).json({ error: 'Internal Server Error' });
+    } else {
+    // console.log(myGlobalInteger);
+    // res.json(myGlobalInteger);
+      res.json(results);
+      //res.json(userid);
+
+    }
+  });
+};
+
+
+/////////////////////////////////Data Resources/////////////////////////////
 exports.GetData = (req, res) => { 
   db.query('SELECT * FROM opendataaccess', (err, results) => {
        if (err) {
@@ -190,9 +248,10 @@ exports.GetUserSus = (req, res) => {
       });
 };
 exports.PostUserSus = (req, res) => {
+  const userID = require('./Login');
     const { Score_ID, User_ID,Score_Value } = req.body;
     const Timestamp = new Date();
-db.query('INSERT INTO sustainabilityscore (Score_ID , User_ID, Timestamp, Score_Value) VALUES (?,?, ?, ?)', [ Score_ID, User_ID,Timestamp,Score_Value], (err, result) => {
+db.query('INSERT INTO sustainabilityscore (Score_ID , User_ID, Timestamp, Score_Value) VALUES (?,?, ?, ?)', [ Score_ID, userID,Timestamp,Score_Value], (err, result) => {
     if (err) {
       console.error('Error creating sustainabilityscore:', err);
       res.status(500).json({ error: 'Internal Server Error' });
@@ -206,10 +265,11 @@ db.query('INSERT INTO sustainabilityscore (Score_ID , User_ID, Timestamp, Score_
    
 
 exports.UpdateUserSus = (req, res) => {
+  const userID = require('./Login');
     const ScoreId = req.params.id;
     const { Score_ID, User_ID,Score_Value } = req.body;
     const Timestamp = new Date();
-    db.query('UPDATE sustainabilityscore SET User_ID=?, Timestamp=?, Score_Value=? WHERE Score_ID=?', [User_ID, Timestamp, Score_Value, ScoreId], (err, result) => {
+    db.query('UPDATE sustainabilityscore SET User_ID=?, Timestamp=?, Score_Value=? WHERE Score_ID=?', [UserID, Timestamp, Score_Value, ScoreId], (err, result) => {
       if (err) {
         console.error('Error updating sustainabilityscore:', err);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -230,3 +290,96 @@ exports.DeleteUserSus = (req, res) => {
       }
     });
 };
+
+
+
+///////////////////////Enviromental data////////////////////////
+exports.GetEnviromental = (req, res) => {
+  db.query('SELECT * FROM environmentaldata', (err, results) => {
+       if (err) {
+         console.error('Error fetching environmentaldata:', err);
+         res.status(500).json({ error: 'Internal Server Error' });
+       } else {
+         res.json(results);
+       }
+     });
+};
+exports.GetEnviromentalByUser = (req, res) => {
+  const userID = require('./Login');
+  db.query('SELECT * FROM environmentaldata WHERE User_ID=?', [userID ],(err, results) => {
+       if (err) {
+         console.error('Error fetching environmentaldata:', err);
+         res.status(500).json({ error: 'Internal Server Error' });
+       } else {
+         res.json(results);
+       }
+     });
+};
+exports.PostEnviromental = (req, res) => {
+ const userID = require('./Login');
+ const Timestamp = new Date();
+
+   const { Data_ID, User_ID, Air_Quality, Temperature, Humidity, Water_Quality, Biodiversity_Metrics } = req.body;
+db.query('INSERT INTO environmentaldata (Data_ID, User_ID, Timestamp, Air_Quality, Temperature, Humidity, Water_Quality, Biodiversity_Metrics) VALUES (?,?, ?, ?,?,?,?,?)', [ Data_ID, userID,Timestamp ,Air_Quality, Temperature, Humidity, Water_Quality, Biodiversity_Metrics], (err, result) => {
+   if (err) {
+     console.error('Error creating environmentaldata:', err);
+     res.status(500).json({ error: 'Internal Server Error' });
+   } else {
+     res.json({ message: 'environmentaldata created successfully'});
+   }
+ });
+
+};
+
+exports.UpdateEnviromental= (req, res) => {
+  const userID = require('./Login');
+    const dataId = req.params.id;
+    const { Data_ID, User_ID, Air_Quality, Temperature, Humidity, Water_Quality, Biodiversity_Metrics } = req.body;
+    const Timestamp = new Date();
+    db.query('UPDATE environmentaldata SET User_ID =?, Timestamp=?, Air_Quality=?, Temperature=?, Humidity=?, Water_Quality=?, Biodiversity_Metrics=? WHERE Data_ID=?', [userID,Timestamp ,Air_Quality, Temperature, Humidity, Water_Quality, Biodiversity_Metrics, dataId], (err, result) => {
+      if (err) {
+        console.error('Error updating environmentaldata:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      } else {
+        res.json({ message: 'environmentaldata updated successfully', rowsAffected: result.affectedRows });
+      }
+    });
+};
+exports.DeleteEnviromental = (req, res) => {
+    const dataId = req.params.id;
+
+    db.query('DELETE FROM environmentaldata WHERE Data_ID=?', [dataId], (err, result) => {
+      if (err) {
+        console.error('Error deleting environmentaldata:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      } else {
+        res.json({ message: 'environmentaldata deleted successfully', rowsAffected: result.affectedRows });
+      }
+    });
+};
+
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+/*const axios = require('axios');
+
+const apiKey = '1a758f18c346bd26369bfbdaf9b9966e';
+const cityName = 'Nablus'; // Replace with the desired city name
+
+const apiUrl =`http://api.openweathermap.org/data/2.5/weather?q=${cityName}&appid=${apiKey}`;
+
+axios.get(apiUrl).then(response => {
+    // Handle the response data here
+    console.log(response.data);
+  })
+  .catch(error => {
+    // Handle any errors
+    console.error('Error fetching data:', error);
+  });
+*/
+
+
+  

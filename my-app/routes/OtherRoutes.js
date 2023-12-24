@@ -37,6 +37,13 @@ router.put('/report/:id', OtherControllers.UpdateReport);
 // DELETE a user
 router.delete('/report/:id', OtherControllers.DeleteReport);
 
+router.get('/report/:id',OtherControllers.GetReportByID );
+
+router.get('/reportByUser',OtherControllers.GetReportByUserID );
+
+router.delete('/reportdeletebyUser', OtherControllers.DeleteReportbyuserid);
+
+
 
 //////////////////////Data////////////////////////////////////////
 router.get('/data',OtherControllers.GetData );
@@ -65,5 +72,20 @@ router.delete('/usersSus/:id', OtherControllers.DeleteUserSus);
 
 ////////////login//////////////////////////////
 router.get('/login',login.getLogin);
+
+
+////////////////////enviromental////////////////////
+router.get('/env',OtherControllers.GetEnviromental );
+
+router.get('/envUser',OtherControllers.GetEnviromentalByUser);
+
+// CREATE a new user
+router.post('/env',OtherControllers.PostEnviromental );
+
+// UPDATE an existing user
+router.put('/env/:id', OtherControllers.UpdateEnviromental);
+
+// DELETE a user
+router.delete('/env/:id', OtherControllers.DeleteEnviromental);
 
 module.exports = router;

@@ -8,6 +8,7 @@ const db = require('../database.js');
 
 //////////////////////////////
 const http = require('http');
+const { GetUser } = require('./UserControllers.js');
 
 const server = http.createServer((req, res) => {
   res.writeHead(200, {'Content-Type': 'text/plain'});
@@ -40,13 +41,15 @@ const server = http.createServer((req, res) => {
 
 
 //const jwt = require('jsonwebtoken');
+//let loggedInUserId = null;
+const jwt = require('jsonwebtoken');
 
 
 exports.getLogin= (req, res)=> {
 
     const { Email , Password } = req.body; 
 
-    const secretKey = '1234';
+    //const secretKey = '1234';
 
     // Find the user in the database
     const query = 'SELECT * FROM user WHERE Email = ?';
@@ -69,14 +72,35 @@ exports.getLogin= (req, res)=> {
       if (Password != user.Password) {
         res.status(401).json({ error: 'Invalid Email or password' }); // invalid password 
         return;
+
       }
-      res.status(200).json( 'Welcome' ); // invalid password 
+      loggedInUserId = user.User_ID;
+      module.exports = global.loggedInUserId;
+      res.status(200).json( 'Welcome' ); 
+      //res.status(200).json( loggedInUserId ); // invalid password 
+
       return;
       // Create a JWT token
       //const token = jwt.sign({ id: user.id, Email: user.Email }, secretKey);
   
       // Send the token back to the client
       //res.json({ token });
+      
+     // const token = createToken(loggedInUserId);
+
+    // Send the token back to the client
+    res.status(200).json({ token });
     });
-}
+  };
+    exports.getLoggedInUserId = () => {
+      return loggedInUserId;
+  };
+
+  function createToken(User_ID) {
+    const secretKey = '1234';
+    const token = jwt.sign({ id: User_ID }, secretKey);
+    return token;
+  }
+
+
   

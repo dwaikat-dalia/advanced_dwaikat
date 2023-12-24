@@ -18,7 +18,6 @@ const server = http.createServer((req, res) => {
 
 
 exports.GetAlerts = (req, res) => {
- //   console.log("we are here ");
    db.query('SELECT * FROM environmentalalerts', (err, results) => {
         if (err) {
           console.error('Error fetching Alerts:', err);
@@ -28,6 +27,19 @@ exports.GetAlerts = (req, res) => {
         }
       });
 };
+
+exports.GetAlertsbyUserid = (req, res) => {
+  const userID = require('./Login');
+  db.query('SELECT * FROM environmentalalerts WHERE User_ID ? ',[userID], (err, results) => {
+       if (err) {
+         console.error('Error fetching Alerts:', err);
+         res.status(500).json({ error: 'Internal Server Error' });
+       } else {
+         res.json(results);
+       }
+     });
+};
+
 exports.PostAlerts = (req, res) => {
     const {ALert_ID, User_ID, ALert_Message } = req.body;
     const Timestamp = new Date();
