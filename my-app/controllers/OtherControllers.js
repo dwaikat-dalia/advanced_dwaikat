@@ -3,6 +3,7 @@ const express = require('express');
 const app = express();
 const port = process.env.PORT || 3000;*/
 const db = require('../database.js');
+const axios = require('axios');
 
 //////////////////////////////
 const http = require('http');
@@ -12,12 +13,128 @@ const server = http.createServer((req, res) => {
   res.end('Hello, World!\n');
 });
 
-//const userAuth = require('../controllers/Login.js'); 
-////////////////////////////////
 
+////////////////////////////////
+exports.GetFriends = (req, res) => {
+  const userID = require('./Login'); // Make sure the Login module exports userID correctly
+  const ProfileID = req.params.id;
+
+  db.query('SELECT Interests FROM userprofile WHERE User_ID=?', [userID], async (err, results) => {
+    if (err) {
+      console.error('Error fetching user profiles:', err);
+      res.status(500).json({ error: 'Internal Server Error' });
+    } else {
+      const interestsMap = {};
+
+      for (let j = 0; j < results.length; j++) {
+        try {
+          const results2 = await new Promise((resolve, reject) => {
+            db.query('SELECT User_ID, Interests FROM userprofile WHERE User_ID!=? AND Interests=?', [userID, results[j].Interests], async (err, results2) => {
+              if (err) {
+                console.error('Error fetching user profiles:', err);
+                reject(err);
+              } else {
+                resolve(results2);
+              }
+            });
+          });
+
+          for (let i = 0; i < results2.length; i++) {
+            try {
+              const friendss = await new Promise((resolve, reject) => {
+                db.query('SELECT User_ID, Username FROM user WHERE User_ID=?', [results2[i].User_ID], (err, friendss) => {
+                  if (err) {
+                    console.error(`Error fetching friends:`, err);
+                    reject(err);
+                  } else {
+                    console.log(`Done fetching friends:`, friendss);
+
+                    // Group friends by interest
+                    if (!interestsMap[results[j].Interests]) {
+                      interestsMap[results[j].Interests] = [];
+                    }
+
+                    interestsMap[results[j].Interests].push({
+                      User_ID: friendss[0].User_ID,
+                      Username: friendss[0].Username,
+                    });
+
+                    resolve(friendss);
+                  }
+                });
+              });
+            } catch (error) {
+              console.error('Error in inner loop:', error);
+            }
+          }
+
+          console.log('Interests Map after inner loop:', interestsMap);
+        } catch (error) {
+          console.error('Error in outer loop:', error);
+        }
+      }
+
+      console.log('Interests Map after outer loop:', interestsMap);
+
+      // Send the response to Postman
+      res.json(interestsMap);
+    }
+  });
+};
+
+exports.getDataFromCustomApi = async (req, res) => {
+  // Assuming the city is provided as a query parameter
+  //const { city } = req.params;
+const {city} = req.params;
+  if (!city) {
+    return res.status(400).json({ error: 'City is a required query parameter.' });
+  }
+
+  const options = {
+    method: 'GET',
+    url: 'https://weatherbit-v1-mashape.p.rapidapi.com/forecast/3hourly',
+    params: {
+      city: city
+    },
+    headers: {
+      'X-RapidAPI-Key': 'b239d39578msh041a0792f110f03p146093jsn67535b53e702',
+      'X-RapidAPI-Host': 'weatherbit-v1-mashape.p.rapidapi.com'
+    }
+  };
+
+  try {
+    const response = await axios.request(options);
+    res.json(response.data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch weather data' });
+  }
+};
+
+
+
+exports.getAirQualityData = async (req, res) => {
+  try {
+    const apiKey = 'fc78157dbfb9a2dce1aaf70d03a9b4eb';
+    const { city } = req.params;
+    //const city = 'Ramallah';
+    const apiUrl = `http://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}`;
+
+    const response = await axios.get(apiUrl);
+    const weatherData = response.data;
+
+    // Send the weather data back to the client
+    res.json({ status: 'success', weatherData });
+  } catch (error) {
+    console.error('Error fetching weather data from OpenWeatherMap:', error.message);
+    // Handle errors and send an error response
+    res.status(500).json({ status: 'error', message: 'Failed to fetch weather data.' });
+  }
+};
 
 ///////////////////////Educational Resources Table////////////////////////////
 exports.GetResources = (req, res) => {
+
    db.query('SELECT * FROM educationalresources', (err, results) => {
         if (err) {
           console.error('Error fetching Resources:', err);
@@ -27,10 +144,18 @@ exports.GetResources = (req, res) => {
         }
       });
 };
+
 exports.PostResources = (req, res) => {
     const {Resource_ID, Title,Content,Author,Tags } = req.body;
     const Timestamp = new Date();
-
+    const userID = require('./Login');
+    const dataId = req.params.id;
+    db.query('SELECT Description FROM userprofile WHERE User_ID=?', [userID ],(err, results) => {
+      if (results[0].Description !=='R') {
+        console.log(results);
+        res.json(  'You are not allowed to insert resources' );
+      }
+       else{
     db.query('INSERT INTO educationalresources (Resource_ID, Title , Content,Timestamp,Author,Tags) VALUES (?,?, ?, ?,?,?)', [Resource_ID, Title,Content,Timestamp,Author,Tags], (err, result) => {
       if (err) {
         console.error('Error creating Resources:', err);
@@ -39,12 +164,22 @@ exports.PostResources = (req, res) => {
         res.json({ message: 'Resource added successfully', Resource_ID: result.insertId });
       }
     });
-};
+   }
+   });
+   };
+
 exports.UpdateResources = (req, res) => {
     const Resourceid = req.params.id;
     const {Resource_ID, Title,Content,Author,Tags } = req.body;
     const Timestamp = new Date();
-
+    const userID = require('./Login');
+    const dataId = req.params.id;
+    db.query('SELECT Description FROM userprofile WHERE User_ID=?', [userID ],(err, results) => {
+      if (results[0].Description !=='R') {
+        console.log(results);
+        res.json(  'You are not allowed to update resources' );
+      }
+       else{
     db.query('UPDATE educationalresources SET Title=?, Content=?, Timestamp=? , Author=? , Tags=? WHERE Resource_ID=?', [Title,Content,Timestamp,Author,Tags, Resourceid], (err, result) => {
       if (err) {
         console.error('Error updating Resource:', err);
@@ -53,10 +188,22 @@ exports.UpdateResources = (req, res) => {
         res.json({ message: 'Resource updated successfully', rowsAffected: result.affectedRows });
       }
     });
-};
+   }
+   });
+   
+   
+   };
+
 exports.DeleteResources = (req, res) => {
     const Resourceid = req.params.id;
-
+    const userID = require('./Login');
+    const dataId = req.params.id;
+    db.query('SELECT Description FROM userprofile WHERE User_ID=?', [userID ],(err, results) => {
+      if (results[0].Description !=='R') {
+        console.log(results);
+        res.json(  'You are not allowed to delete resources' );
+      }
+       else{
     db.query('DELETE FROM educationalresources WHERE Resource_ID=?', [Resourceid], (err, result) => {
       if (err) {
         console.error('Error deleting Alert:', err);
@@ -65,7 +212,12 @@ exports.DeleteResources = (req, res) => {
         res.json({ message: 'Resource deleted successfully', rowsAffected: result.affectedRows });
       }
     });
-};
+   }
+   });
+   
+   
+   };
+
 
 /////////////////////////////////Community Report////////////////////////////////////////////
 exports.GetReport = (req, res) => { 
@@ -206,7 +358,6 @@ exports.PostData = (req, res) => {
    });
 };
 
-
 exports.UpdateData = (req, res) => {
  
    const dataId = req.params.id;
@@ -238,7 +389,7 @@ exports.DeleteData = (req, res) => {
 ////////////////////////////////////Sus.Score//////////////////////////////////
 
 exports.GetUserSus = (req, res) => {
-   db.query('SELECT * FROM sustainabilityscore', (err, results) => {
+   db.query('SELECT User_ID,Score_Value FROM sustainabilityscore', (err, results) => {
         if (err) {
           console.error('Error fetching sustainabilityscore:', err);
           res.status(500).json({ error: 'Internal Server Error' });
@@ -248,6 +399,7 @@ exports.GetUserSus = (req, res) => {
       });
 };
 exports.PostUserSus = (req, res) => {
+  
   const userID = require('./Login');
     const { Score_ID, User_ID,Score_Value } = req.body;
     const Timestamp = new Date();
@@ -255,9 +407,13 @@ db.query('INSERT INTO sustainabilityscore (Score_ID , User_ID, Timestamp, Score_
     if (err) {
       console.error('Error creating sustainabilityscore:', err);
       res.status(500).json({ error: 'Internal Server Error' });
-    } else {
-      res.json({ message: 'sustainabilityscore created successfully', userId: result.insertId });
+    } else 
+    {
+     
+      res.json({ message: 'sustainabilityscore created successfully', ScoreId: result.insertId });
+      
     }
+    
   });
 
 };
@@ -269,7 +425,7 @@ exports.UpdateUserSus = (req, res) => {
     const ScoreId = req.params.id;
     const { Score_ID, User_ID,Score_Value } = req.body;
     const Timestamp = new Date();
-    db.query('UPDATE sustainabilityscore SET User_ID=?, Timestamp=?, Score_Value=? WHERE Score_ID=?', [UserID, Timestamp, Score_Value, ScoreId], (err, result) => {
+    db.query('UPDATE sustainabilityscore SET User_ID=?, Timestamp=?, Score_Value=? WHERE Score_ID=?', [userID, Timestamp, Score_Value, ScoreId], (err, result) => {
       if (err) {
         console.error('Error updating sustainabilityscore:', err);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -304,62 +460,320 @@ exports.GetEnviromental = (req, res) => {
        }
      });
 };
+
 exports.GetEnviromentalByUser = (req, res) => {
   const userID = require('./Login');
   db.query('SELECT * FROM environmentaldata WHERE User_ID=?', [userID ],(err, results) => {
-       if (err) {
+    if (results[0].Description !=='R') {
+      console.log(results);
+      res.json(  'You are not Researcher' );
+    } else if (err) 
+    {
          console.error('Error fetching environmentaldata:', err);
          res.status(500).json({ error: 'Internal Server Error' });
-       } else {
+       } else 
+       {
          res.json(results);
        }
      });
 };
 exports.PostEnviromental = (req, res) => {
+
  const userID = require('./Login');
  const Timestamp = new Date();
-
-   const { Data_ID, User_ID, Air_Quality, Temperature, Humidity, Water_Quality, Biodiversity_Metrics } = req.body;
+ db.query('SELECT Description,Location FROM userprofile WHERE User_ID=?', [userID ],(err, results) => {
+  if (results[0].Description !=='R') {
+    console.log(results);
+    res.json(  'You are not allowed to insert data' );
+  } else 
+  {
+ const { Data_ID, User_ID, Air_Quality, Temperature, Humidity, Water_Quality, Biodiversity_Metrics } = req.body;
 db.query('INSERT INTO environmentaldata (Data_ID, User_ID, Timestamp, Air_Quality, Temperature, Humidity, Water_Quality, Biodiversity_Metrics) VALUES (?,?, ?, ?,?,?,?,?)', [ Data_ID, userID,Timestamp ,Air_Quality, Temperature, Humidity, Water_Quality, Biodiversity_Metrics], (err, result) => {
    if (err) {
      console.error('Error creating environmentaldata:', err);
      res.status(500).json({ error: 'Internal Server Error' });
    } else {
-     res.json({ message: 'environmentaldata created successfully'});
+     
+    var Location=results[0].Location;   
+    const isAirQuality1000 = Air_Quality === 10000;
+    const isTemperature1000 = Temperature === 10000;
+    const isHumidity1000 = Humidity === 10000;
+    const isWaterQuality1000 = Water_Quality === 10000;
+    const isBiodiversityMetrics1000 = Biodiversity_Metrics === 10000;
+    console.log('Location:', Location);
+    console.log('isAirQuality1000:', isAirQuality1000);
+    console.log('isTemperature1000:', isTemperature1000);
+    console.log('isHumidity1000:', isHumidity1000);
+    console.log('isWaterQuality1000:', isWaterQuality1000);
+    console.log('isBiodiversityMetrics1000:', isBiodiversityMetrics1000);
+   if(isAirQuality1000==false){
+
+    const Timestamp = new Date();
+    const {Alert_ID, User_ID, Alert_Message , interest } = req.body;
+
+    db.query('INSERT INTO environmentalalerts (Alert_ID ,User_ID ,Timestamp,Alert_Message,interest , Location) VALUES (?,?, ?, ?, ?,?)', [Alert_ID , userID, Timestamp, "Air quality value is updated","Air_Quality",Location], (err, result) => {
+      if (err) {
+        console.error('Error creating Alert:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+       else {
+
+       /* db.query('SELECT * FROM sustainabilityscore', (err, res) => {
+          if (err) {
+            console.error('Error fetching sustainabilityscore:', err);
+            res.status(500).json({ error: 'Internal Server Error' });
+          } 
+          else {
+            const { Score_ID, User_ID,Score_Value } = req.body;
+            const Timestamp = new Date();
+            db.query('UPDATE sustainabilityscore SET User_ID=?, Timestamp=?, Score_Value=? WHERE Score_ID=?', [userID, Timestamp, 1+(res[0].Score_Value), res[0].Score_ID ], (err, result) => {
+              if (err) {
+                console.error('Error updating sustainabilityscore:', err);
+                res.status(500).json({ error: 'Internal Server Error' });
+              } else {
+                res.json({ message: 'SustainabilityScore updated successfully', rowsAffected: result.affectedRows });
+              }
+            });
+            //res.json(res);
+          }
+        });
+*/
+  //      res.json({ message: 'Alert added successfully', Alert_ID: result.insertId });
+      }
+    });
+  }
+
+
+  if(isTemperature1000==false){
+
+    const Timestamp = new Date();
+    const {Alert_ID, User_ID, Alert_Message ,interest } = req.body;
+
+    db.query('INSERT INTO environmentalalerts (Alert_ID ,User_ID ,Timestamp,Alert_Message,interest ,Location) VALUES (?,?, ?,?, ?, ?)', [Alert_ID , userID, Timestamp, "Temperature value is updated","Temperature",Location], (err, result) => {
+      if (err) {
+        console.error('Error creating Alert:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      } else {
+        console.log("Done Temp");
+    //    res.json({ message: 'Alert added successfully', Alert_ID: result.insertId });
+      }
+    });
+  }
+
+  if(isHumidity1000==false){
+
+    const Timestamp = new Date();
+    const {Alert_ID, User_ID, Alert_Message, interest  } = req.body;
+
+    db.query('INSERT INTO environmentalalerts (Alert_ID ,User_ID ,Timestamp,Alert_Message,interest , Location ) VALUES (?,?, ?, ?, ?,?)', [Alert_ID , userID, Timestamp, "Humidity value is updated","Humidity",Location], (err, result) => {
+      if (err) {
+        console.error('Error creating Alert:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      } else {
+       // res.json({ message: 'Alert added successfully', Alert_ID: result.insertId });
+      }
+    });
+  }
+
+
+  if(isWaterQuality1000==false){
+
+    const Timestamp = new Date();
+    const {Alert_ID, User_ID, Alert_Message, interest  } = req.body;
+
+    db.query('INSERT INTO environmentalalerts (Alert_ID ,User_ID ,Timestamp,Alert_Message,interest , Location ) VALUES (?,?, ?, ?,?, ?)', [Alert_ID , userID, Timestamp, "WaterQuality value is updated","Water_Quality",Location], (err, result) => {
+      if (err) {
+        console.error('Error creating Alert:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      } else {
+      //  res.json({ message: 'Alert added successfully', Alert_ID: result.insertId });
+      }
+    });
+  }
+
+
+  if(isBiodiversityMetrics1000==false){
+
+    const Timestamp = new Date();
+    const {Alert_ID, User_ID, Alert_Message,interest   } = req.body;
+
+    db.query('INSERT INTO environmentalalerts (Alert_ID ,User_ID ,Timestamp,Alert_Message,interest , Location ) VALUES (?,?, ?,?, ?, ?)', [Alert_ID , userID, Timestamp, "BiodiversityMetrics value is updated","Biodiversity_Metrics",Location], (err, result) => {
+      if (err) {
+        console.error('Error creating Alert:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      } else {
+       // res.json({ message: 'Alert added successfully', Alert_ID: result.insertId });
+      }
+    });
+  }
+  db.query('SELECT * FROM sustainabilityscore', (err, results2) => {
+    if (err) {
+      console.error('Error fetching sustainabilityscore:', err);
+      res.status(500).json({ error: 'Internal Server Error' });
+    } 
+    else {
+      const { Score_ID, User_ID,Score_Value } = req.body;
+      const Timestamp = new Date();
+      db.query('UPDATE sustainabilityscore SET User_ID=?, Timestamp=?, Score_Value=? WHERE Score_ID=?', [userID, Timestamp, results2[0].Score_Value+1, results2[0].Score_ID ], (err, result) => {
+        if (err) {
+          console.error('Error updating sustainabilityscore:', err);
+          res.status(500).json({ error: 'Internal Server Error' });
+        } else {
+          res.json({ message: 'SustainabilityScore updated successfully', rowsAffected: result.affectedRows });
+        }
+      });
+      //res.json(results2);
+    }
+  });
+    // res.json({ message: 'environmentaldata created successfully'});
    }
  });
+}
+});
 
 };
 
 exports.UpdateEnviromental= (req, res) => {
   const userID = require('./Login');
-    const dataId = req.params.id;
-    const { Data_ID, User_ID, Air_Quality, Temperature, Humidity, Water_Quality, Biodiversity_Metrics } = req.body;
+  const dataId = req.params.DataID;
+  const { Data_ID, User_ID, Air_Quality, Temperature, Humidity, Water_Quality, Biodiversity_Metrics } = req.body;
     const Timestamp = new Date();
+    db.query('SELECT Description,Location FROM userprofile WHERE User_ID=?', [userID ],(err, results) => {
+      if (results[0].Description !=='R') 
+      {
+        console.log(results);
+        res.json(  'You are not allowed to update data' );
+      }
+       else {
+
     db.query('UPDATE environmentaldata SET User_ID =?, Timestamp=?, Air_Quality=?, Temperature=?, Humidity=?, Water_Quality=?, Biodiversity_Metrics=? WHERE Data_ID=?', [userID,Timestamp ,Air_Quality, Temperature, Humidity, Water_Quality, Biodiversity_Metrics, dataId], (err, result) => {
+    
       if (err) {
         console.error('Error updating environmentaldata:', err);
         res.status(500).json({ error: 'Internal Server Error' });
-      } else {
+      } 
+      
+      else {
+  var Location=results[0].Location;
+        const isAirQuality1000 = Air_Quality === 1000;
+        const isTemperature1000 = Temperature === 1000;
+        const isHumidity1000 = Humidity === 1000;
+        const isWaterQuality1000 = Water_Quality === 1000;
+        const isBiodiversityMetrics1000 = Biodiversity_Metrics === 1000;
+    
+       if(isAirQuality1000==false){
+    
+        const Timestamp = new Date();
+        const {Alert_ID, User_ID, Alert_Message ,interest  } = req.body;
+    
+        db.query('INSERT INTO environmentalalerts (Alert_ID ,User_ID ,Timestamp,Alert_Message,interest , Location ) VALUES (?,?, ?,?, ?, ?)', [Alert_ID , userID, Timestamp, "Air quality value is updated","Air_Quality",Location], (err, result) => {
+          if (err) {
+            console.error('Error creating Alert:', err);
+            res.status(500).json({ error: 'Internal Server Error' });
+          } else {
+            res.json({ message: 'Alert added successfully', Alert_ID: result.insertId });
+          }
+        });
+      }
+    
+    
+      if(isTemperature1000==false){
+    
+        const Timestamp = new Date();
+        const {Alert_ID, User_ID, Alert_Message,interest   } = req.body;
+    
+        db.query('INSERT INTO environmentalalerts (Alert_ID ,User_ID ,Timestamp,Alert_Message,interest , Location ) VALUES (?,?, ?, ?, ?)', [Alert_ID , userID, Timestamp, "Temperature value is updated","Temperature",Location], (err, result) => {
+          if (err) {
+            console.error('Error creating Alert:', err);
+            res.status(500).json({ error: 'Internal Server Error' });
+          } else {
+            res.json({ message: 'Alert added successfully', Alert_ID: result.insertId });
+          }
+        });
+      }
+    
+      if(isHumidity1000==false){
+    
+        const Timestamp = new Date();
+        const {Alert_ID, User_ID, Alert_Message,interest   } = req.body;
+    
+        db.query('INSERT INTO environmentalalerts (Alert_ID ,User_ID ,Timestamp,Alert_Message,interest , Location ) VALUES (?,?, ?, ?,?, ?)', [Alert_ID , userID, Timestamp, "Humidity value is updated","Humidity",Location], (err, result) => {
+          if (err) {
+            console.error('Error creating Alert:', err);
+            res.status(500).json({ error: 'Internal Server Error' });
+          } else {
+            res.json({ message: 'Alert added successfully', Alert_ID: result.insertId });
+          }
+        });
+      }
+    
+    
+      if(isWaterQuality1000==false){
+    
+        const Timestamp = new Date();
+        const {Alert_ID, User_ID, Alert_Message,interest   } = req.body;
+    
+        db.query('INSERT INTO environmentalalerts (Alert_ID ,User_ID ,Timestamp,Alert_Message,interest , Location ) VALUES (?,?,?, ?, ?, ?)', [Alert_ID , userID, Timestamp, "WaterQuality value is updated","Water_Quality",Location], (err, result) => {
+          if (err) {
+            console.error('Error creating Alert:', err);
+            res.status(500).json({ error: 'Internal Server Error' });
+          } else {
+            res.json({ message: 'Alert added successfully', Alert_ID: result.insertId });
+          }
+        });
+      }
+    
+    
+      if(isBiodiversityMetrics1000==false){
+    
+        const Timestamp = new Date();
+        const {Alert_ID, User_ID, Alert_Message,interest   } = req.body;
+    
+        db.query('INSERT INTO environmentalalerts (Alert_ID ,User_ID ,Timestamp,Alert_Message,interest , Location ) VALUES (?,?,?, ?, ?, ?)', [Alert_ID , userID, Timestamp, "BiodiversityMetrics value is updated","Biodiversity_Metrics",Location], (err, result) => {
+          if (err) {
+            console.error('Error creating Alert:', err);
+            res.status(500).json({ error: 'Internal Server Error' });
+          } else {
+            res.json({ message: 'Alert added successfully', Alert_ID: result.insertId });
+          }
+        });
+      }
+    
         res.json({ message: 'environmentaldata updated successfully', rowsAffected: result.affectedRows });
       }
     });
-};
+   }
+   });
+   
+   
+   };
 exports.DeleteEnviromental = (req, res) => {
-    const dataId = req.params.id;
-
+  const userID = require('./Login');
+    const dataId = req.params.DataID;
+    db.query('SELECT Description FROM userprofile WHERE User_ID=?', [userID ],(err, results) => {
+      if (results[0].Description !=='R') {
+        console.log(results);
+        res.json(  'You are not allowed to delete data' );
+      }
+       else {
     db.query('DELETE FROM environmentaldata WHERE Data_ID=?', [dataId], (err, result) => {
+     
       if (err) {
         console.error('Error deleting environmentaldata:', err);
         res.status(500).json({ error: 'Internal Server Error' });
-      } else {
+      } 
+      else {
         res.json({ message: 'environmentaldata deleted successfully', rowsAffected: result.affectedRows });
       }
     });
-};
+   }
+   });
+   
 
+   
+   
 
-
+   };
 
 
 
@@ -382,4 +796,3 @@ axios.get(apiUrl).then(response => {
 */
 
 
-  

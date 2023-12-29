@@ -1,9 +1,7 @@
 const express = require('express');
-/*const mysql = require('mysql2');
-const app = express();
-const port = process.env.PORT || 3000;*/
 const db = require('../database.js');
-
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
 //////////////////////////////
 const http = require('http');
 
@@ -37,14 +35,23 @@ exports.SignUser = (req, res) => {
             return res.status(409).json({ message: 'Email is already taken' });
         }
 
+
         // Password strength check
         if (!isStrongPassword(Password)) {
             return res.status(400).json({ message: 'Weak password. Please use a stronger password.' });
         }
 
+        /////hashing/////
+        bcrypt.hash(Password, saltRounds, (err, hashedPassword) => {
+            if (err) {
+                console.error('Error hashing password:', err);
+                return res.status(500).json({ message: 'Error while hashing password' });
+            }
+
+
         // Email is not taken, and password is strong, proceed with user creation
         const insertUserQuery = 'INSERT INTO user (Username, Email, Password) VALUES (?, ?, ?)';
-        db.query(insertUserQuery, [Username, Email, Password], (err, result) => {
+        db.query(insertUserQuery, [Username, Email, hashedPassword], (err, result) => {
             if (err) {
                 console.error('Error executing query:', err);
                 return res.status(500).json({ message: 'Internal Server Error' });
@@ -52,6 +59,7 @@ exports.SignUser = (req, res) => {
             res.status(201).json({ message: 'User created successfully' });
         });
     });
+});
 };
 function isStrongPassword(password) {
     // Implement your password strength criteria here
